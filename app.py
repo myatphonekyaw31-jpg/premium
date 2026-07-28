@@ -168,11 +168,25 @@ def init_db():
                 status TEXT NOT NULL DEFAULT 'New',
                 payment_file_id TEXT,
                 payment_submitted_at TEXT,
+                confirmation_sent_at TEXT,
+                confirmation_error TEXT,
                 created_at TEXT NOT NULL,
                 updated_at TEXT NOT NULL
             )
             """
         )
+        columns = {
+            row["name"]
+            for row in connection.execute("PRAGMA table_info(leads)").fetchall()
+        }
+        if "confirmation_sent_at" not in columns:
+            connection.execute(
+                "ALTER TABLE leads ADD COLUMN confirmation_sent_at TEXT"
+            )
+        if "confirmation_error" not in columns:
+            connection.execute(
+                "ALTER TABLE leads ADD COLUMN confirmation_error TEXT"
+            )
 
 
 def now():
@@ -268,6 +282,42 @@ def payment_instructions(chat_id):
         ),
         PAYMENT_MENU,
     )
+
+
+def send_payment_confirmation(chat_id, lead):
+    student_name = lead["full_name"] or "Student"
+    try:
+        send(
+            chat_id,
+            (
+                "Payment Confirmed ✅\n\n"
+                f"{student_name} ရဲ့ ငွေပေးချေမှုကို MEPT team မှ အတည်ပြုပြီးပါပြီ။\n\n"
+                f"Class — {lead['class_type'] or 'MEPT Class'}\n"
+                f"Package — {lead['package'] or 'Selected Package'}\n\n"
+                "MEPT staff က အတန်းတက်ရမည့်ရက်၊ အချိန်နဲ့ Batch information ကို "
+                "ဆက်လက်အကြောင်းကြားပေးပါမယ်။ ကျေးဇူးတင်ပါတယ်။"
+            ),
+            HOME_MENU,
+        )
+    except Exception as exc:
+        with db() as connection:
+            connection.execute(
+                """
+                UPDATE leads SET confirmation_error=?, updated_at=?
+                WHERE chat_id=?
+                """,
+                (str(exc)[:300], now(), chat_id),
+            )
+        return False
+    with db() as connection:
+        connection.execute(
+            """
+            UPDATE leads SET confirmation_sent_at=?, confirmation_error=NULL,
+                updated_at=? WHERE chat_id=?
+            """,
+            (now(), now(), chat_id),
+        )
+    return True
 
 
 def handle_contact(chat_id, contact):
@@ -434,7 +484,8 @@ DASHBOARD_HTML = """
     main{max-width:1400px;margin:auto;padding:26px}.metrics{display:grid;grid-template-columns:repeat(5,minmax(150px,1fr));gap:14px;margin-bottom:20px}
     .metric,.panel{background:var(--card);border:1px solid #e2e8f0;border-radius:14px;box-shadow:0 4px 16px #17324d0b}.metric{padding:18px}.metric small{color:var(--muted)}.metric strong{display:block;font-size:29px;margin-top:6px}
     .panel{overflow:hidden}.toolbar{display:flex;gap:12px;align-items:center;justify-content:space-between;padding:16px 18px;border-bottom:1px solid #e5e9f0}.toolbar h2{font-size:18px;margin:0}
-    select,button{border:1px solid #cbd5e1;border-radius:8px;background:white;padding:8px 10px;font:inherit}button{cursor:pointer;background:var(--navy);color:white;border:0}
+    select,input,button{border:1px solid #cbd5e1;border-radius:8px;background:white;padding:8px 10px;font:inherit}button{cursor:pointer;background:var(--navy);color:white;border:0}
+    .message-form{display:flex;gap:6px;min-width:280px}.message-form input{min-width:190px}.small-button{font-size:12px;white-space:nowrap}.success{color:#067554;font-weight:700}.error{color:#a72e2e;font-weight:700}
     table{width:100%;border-collapse:collapse}th,td{text-align:left;padding:13px 14px;border-bottom:1px solid #edf0f4;vertical-align:top}th{font-size:12px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);background:#fafbfd}
     td{font-size:14px}.name{font-weight:700}.muted{color:var(--muted);font-size:12px}.pill{display:inline-block;border-radius:999px;padding:5px 9px;font-weight:700;font-size:11px;background:#eaf2ff;color:#155db8}
     .pill.review{background:#fff3d6;color:#9a6500}.pill.paid{background:#dff8ed;color:#067554}.pill.lost{background:#fde8e8;color:#a72e2e}
@@ -456,11 +507,15 @@ DASHBOARD_HTML = """
       <div class="toolbar"><h2>Student Leads</h2><span class="muted">Track Revenue, Leads, Conversion & Margin daily</span></div>
       {% if leads %}
       <table>
-        <thead><tr><th>Lead</th><th>Phone</th><th>Class</th><th>Package / Fee</th><th>Status</th><th>Screenshot</th><th>Updated</th></tr></thead>
+        <thead><tr><th>Lead / Contact</th><th>Phone</th><th>Class</th><th>Package / Fee</th><th>Status</th><th>Screenshot</th><th>Bot Message</th><th>Updated</th></tr></thead>
         <tbody>
         {% for lead in leads %}
           <tr>
-            <td><div class="name">{{ lead.full_name or "Telegram User" }}</div><div class="muted">@{{ lead.telegram_username or "—" }} · {{ lead.chat_id }}</div></td>
+            <td>
+              <div class="name">{{ lead.full_name or "Telegram User" }}</div>
+              <div class="muted">@{{ lead.telegram_username or "—" }} · {{ lead.chat_id }}</div>
+              {% if lead.telegram_username %}<a target="_blank" href="https://t.me/{{ lead.telegram_username }}">Open Telegram</a>{% endif %}
+            </td>
             <td>{{ lead.phone or "Waiting" }}</td>
             <td>{{ lead.class_type or "Not selected" }}</td>
             <td>{{ lead.package or "—" }}{% if lead.fee %}<div class="muted">{{ "{:,}".format(lead.fee) }} MMK</div>{% endif %}</td>
@@ -472,6 +527,18 @@ DASHBOARD_HTML = """
               </form>
             </td>
             <td>{% if lead.payment_file_id %}<a target="_blank" href="{{ url_for('payment_image', chat_id=lead.chat_id) }}">View payment</a>{% else %}<span class="muted">Waiting</span>{% endif %}</td>
+            <td>
+              {% if lead.confirmation_sent_at %}<div class="success">Confirmed ✓</div><div class="muted">{{ lead.confirmation_sent_at.replace("T"," ")[:16] }}</div>
+              {% elif lead.confirmation_error %}<div class="error">Delivery failed</div><div class="muted">{{ lead.confirmation_error[:80] }}</div>
+              {% else %}<div class="muted">Not sent</div>{% endif %}
+              <form method="post" action="{{ url_for('send_confirmation_again', chat_id=lead.chat_id) }}">
+                <button class="small-button" type="submit">Send confirmation</button>
+              </form>
+              <form class="message-form" method="post" action="{{ url_for('send_custom_message', chat_id=lead.chat_id) }}">
+                <input name="message" required maxlength="1000" placeholder="Message student through bot">
+                <button class="small-button" type="submit">Send</button>
+              </form>
+            </td>
             <td><span class="muted">{{ lead.updated_at.replace("T"," ")[:16] }}</span></td>
           </tr>
         {% endfor %}
@@ -552,19 +619,44 @@ def update_lead(chat_id):
             (status, now(), chat_id),
         )
     if status == "Paid" and lead["status"] != "Paid":
-        student_name = lead["full_name"] or "Student"
-        send(
-            chat_id,
-            (
-                f"Payment Confirmed ✅\n\n"
-                f"{student_name} ရဲ့ ငွေပေးချေမှုကို MEPT team မှ အတည်ပြုပြီးပါပြီ။\n\n"
-                f"Class — {lead['class_type'] or 'MEPT Class'}\n"
-                f"Package — {lead['package'] or 'Selected Package'}\n\n"
-                "MEPT staff က အတန်းတက်ရမည့်ရက်၊ အချိန်နဲ့ Batch information ကို "
-                "ဆက်လက်အကြောင်းကြားပေးပါမယ်။ ကျေးဇူးတင်ပါတယ်။"
-            ),
-            HOME_MENU,
-        )
+        send_payment_confirmation(chat_id, lead)
+    return redirect(url_for("dashboard"))
+
+
+@app.post("/dashboard/confirm/<int:chat_id>")
+@require_dashboard_auth
+def send_confirmation_again(chat_id):
+    with db() as connection:
+        lead = connection.execute(
+            "SELECT full_name, class_type, package FROM leads WHERE chat_id=?",
+            (chat_id,),
+        ).fetchone()
+    if not lead:
+        abort(404)
+    send_payment_confirmation(chat_id, lead)
+    return redirect(url_for("dashboard"))
+
+
+@app.post("/dashboard/message/<int:chat_id>")
+@require_dashboard_auth
+def send_custom_message(chat_id):
+    message = (request.form.get("message") or "").strip()
+    if not message or len(message) > 1000:
+        abort(400)
+    with db() as connection:
+        lead = connection.execute(
+            "SELECT chat_id FROM leads WHERE chat_id=?", (chat_id,)
+        ).fetchone()
+    if not lead:
+        abort(404)
+    try:
+        send(chat_id, f"📩 MEPT Team\n\n{message}", HOME_MENU)
+    except Exception as exc:
+        with db() as connection:
+            connection.execute(
+                "UPDATE leads SET confirmation_error=?, updated_at=? WHERE chat_id=?",
+                (f"Message failed: {str(exc)[:250]}", now(), chat_id),
+            )
     return redirect(url_for("dashboard"))
 
 
