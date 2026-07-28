@@ -23,8 +23,10 @@ app = Flask(__name__)
 
 HOME_MENU = {
     "keyboard": [
-        [{"text": "🏫 In-person Class"}, {"text": "🌙 Online Class"}],
-        [{"text": "❓ FAQs"}, {"text": "📍 လိပ်စာ / ဆက်သွယ်ရန်"}],
+        [{"text": "🔹 Online Standard — ၂၅၀,၀၀၀"}, {"text": "⭐ Online Premium — ၃၅၀,၀၀၀"}],
+        [{"text": "🔹 In-person Standard — ၂၅၀,၀၀၀"}, {"text": "⭐ In-person Premium — ၃၅၀,၀၀၀"}],
+        [{"text": "🕐 အတန်းချိန်"}, {"text": "🎯 Package Support"}],
+        [{"text": "📝 အပ်နှံရန် / Payment"}, {"text": "📍 လိပ်စာ / ဆက်သွယ်ရန်"}],
     ],
     "resize_keyboard": True,
 }
@@ -67,59 +69,79 @@ PACKAGE_DETAILS = {
         "label": "In-person Standard",
         "class_type": "In-person",
         "package": "Standard",
-        "fee": 220000,
+        "fee": 250000,
         "details": (
-            "🏫 In-person Standard — ၂၂၀,၀၀၀ ကျပ်\n\n"
-            "• ကျောင်းတွင် ဆရာ/ဆရာမများနှင့် တိုက်ရိုက်တက်ရောက်ရမည့်အတန်း\n"
-            "• တစ်ပတ် ၄ ရက်\n"
-            "• ချပေးထားသောရက်များထဲမှ အဆင်ပြေသည့်ရက်ကို ရွေးနိုင်ပါတယ်\n"
-            "• Exam Form နှင့် Exam Center support ပါဝင်ပါတယ်"
+            "🔹 In-person Standard Class — ၂၅၀,၀၀၀ ကျပ်\n\n"
+            "✅ သင်တန်းကျောင်းမှာ ဆရာနှင့်မျက်နှာချင်းဆိုင် သင်ကြားခြင်း\n"
+            "✅ သင်တန်းကာလ — ၁ လ\n"
+            "✅ တစ်ပတ် — ၄ ရက်\n"
+            "✅ MEPT 4 Skills ကို စနစ်တကျလေ့ကျင့်ခြင်း"
         ),
     },
     "inperson-premium": {
         "label": "In-person Premium",
         "class_type": "In-person",
         "package": "Premium",
-        "fee": 290000,
+        "fee": 350000,
         "details": (
-            "⭐ In-person Premium — ၂၉၀,၀၀၀ ကျပ်\n\n"
-            "• In-person Standard အားလုံးပါဝင်ပါတယ်\n"
-            "• ၁ လစာ Home Study Lessons\n"
-            "• Speaking, Reading, Writing, Listening 4 Skills practice\n"
-            "• Online learning support နှင့် interactive exercises\n"
-            "• Exam Form နှင့် Exam Center support ပါဝင်ပါတယ်"
+            "⭐ In-person Premium Class — ၃၅၀,၀၀၀ ကျပ်\n\n"
+            "In-person Premium Package တွင် Zoom Class မပါဝင်ပါ။\n\n"
+            "✅ သင်တန်းကျောင်းမှာ ဆရာနှင့်မျက်နှာချင်းဆိုင် သင်ကြားခြင်း\n"
+            "✅ 24/7 Website Access\n"
+            "✅ တစ်လစာ Home-study Lessons နှင့် Exercise Plan\n"
+            "✅ အိမ်မှာ အချိန်မရွေး 4 Skills Practice လုပ်နိုင်ခြင်း\n"
+            "✅ Class Learning + Website Practice ပေါင်းစပ်ထားသော ထိရောက်သည့် Learning System"
         ),
     },
     "online-standard": {
         "label": "Online Standard",
         "class_type": "Online",
         "package": "Standard",
-        "fee": 220000,
+        "fee": 250000,
         "details": (
-            "🌙 Online Standard — ၂၂၀,၀၀၀ ကျပ်\n\n"
-            "• Zoom Live Class\n"
-            "• တစ်ပတ် ၄ ရက်\n"
-            "• ည ၈:၀၀–၉:၃၀ သို့မဟုတ် ည ၉:၃၀–၁၁:၀၀\n"
-            "• အဆင်ပြေသည့်အချိန်ကို ရွေးနိုင်ပါတယ်\n"
-            "• Exam Form နှင့် Exam Center support ပါဝင်ပါတယ်"
+            "🔹 Online Standard Class — ၂၅၀,၀၀၀ ကျပ်\n\n"
+            "အလုပ်မပျက်ဘဲ မိမိအိမ်ကနေ ဆရာနှင့်တိုက်ရိုက် စနစ်တကျလေ့လာနိုင်မည့် Live Zoom Class ဖြစ်ပါတယ်။\n\n"
+            "✅ သင်တန်းကာလ — ၁ လ\n"
+            "✅ တစ်ပတ် — ၄ ရက်\n"
+            "✅ Live Zoom ဖြင့် ဆရာနှင့်တိုက်ရိုက်သင်ကြားခြင်း\n"
+            "✅ Speaking, Reading, Writing, Listening 4 Skills လေ့ကျင့်ခြင်း\n"
+            "✅ Standard Class ဖြစ်သော်လည်း MEPT Exam အတွက် ထိရောက်စွာ ပြင်ဆင်ပေးခြင်း"
         ),
     },
     "online-premium": {
         "label": "Online Premium",
         "class_type": "Online",
         "package": "Premium",
-        "fee": 290000,
+        "fee": 350000,
         "details": (
-            "💎 Online Premium — ၂၉၀,၀၀၀ ကျပ်\n\n"
-            "• Zoom Live Class — တစ်ပတ် ၄ ရက်\n"
-            "• ည ၈:၀၀–၉:၃၀ သို့မဟုတ် ည ၉:၃၀–၁၁:၀၀\n"
-            "• ၁ လစာ Home Study Lessons\n"
-            "• Premium Seaman Service Website access\n"
-            "• 4 Skills interactive exercises & courses\n"
-            "• Exam Form နှင့် Exam Center support ပါဝင်ပါတယ်"
+            "⭐ Online Premium Class — ၃၅၀,၀၀၀ ကျပ် (Recommended)\n\n"
+            "Live Zoom Class တစ်ခုတည်းဖြင့် မရပ်ဘဲ နေ့စဉ် Practice ပိုလုပ်ချင်သူများအတွက် အထိရောက်ဆုံး Package ဖြစ်ပါတယ်။\n\n"
+            "✅ Standard Package မှ Live Zoom Classes အားလုံးပါဝင်ခြင်း\n"
+            "✅ အချိန်မရွေး လေ့ကျင့်နိုင်သော 24/7 Website Access\n"
+            "✅ တစ်လစာ Home-study Lessons နှင့် Exercise Plan\n"
+            "✅ Speaking, Reading, Writing, Listening 4 Skills လုံး လေ့ကျင့်နိုင်ခြင်း\n"
+            "✅ Lessons, Exercises နှင့် Courses များကို မိမိအားနည်းချက်အလိုက် ထပ်ခါထပ်ခါလေ့ကျင့်နိုင်ခြင်း\n"
+            "✅ Class ပြီးသွားသည့်အချိန်မှာပါ နေ့စဉ် Revision နှင့် Practice ဆက်လုပ်နိုင်ခြင်း\n\n"
+            "Online Premium က “Zoom Class + 24/7 Website Practice” ကိုပေါင်းစပ်ထားတဲ့အတွက် Practice Volume ပိုများပြီး MEPT Exam အတွက် ပိုမိုစနစ်ကျစွာ ပြင်ဆင်နိုင်ပါတယ်။"
         ),
     },
 }
+
+ALL_PACKAGE_SUPPORT = (
+    "🎯 Package အားလုံးတွင် ပါဝင်သော Support များ\n\n"
+    "✅ Exam Form တင်ခြင်းနှင့် Exam Center ချိတ်ဆက်ပေးခြင်း\n"
+    "✅ Exam ရက်နီးလာပါက ၂ ရက် Revision Class အခမဲ့တက်ရောက်ခွင့်\n"
+    "✅ MEPT Exam အတွက် လိုအပ်သော 4 Skills နှင့် Mock-test Practice\n"
+    "✅ သင်တန်းသားတစ်ဦးချင်းစီ၏ အားနည်းချက်များကို စစ်ဆေးပြီး လမ်းညွှန်ပေးခြင်း"
+)
+
+ENROLLMENT_CAPTION = (
+    "📝 အပ်နှံရန်\n\n"
+    "စရံငွေ — ၅၀,၀၀၀ ကျပ်\n"
+    "လိုအပ်ချက် — မိမိနာမည်၊ ဖုန်းနံပါတ်နှင့် ရွေးချယ်လိုသော Class/Package\n\n"
+    "📍 အမှတ် (၆၀)၊ မာလာမြိုင် (၈) လမ်း၊ အရှေ့ဗဟိုလမ်းအနီး၊ လှိုင်မြို့နယ်၊ ရန်ကုန်မြို့။\n\n"
+    "နေရာအကန့်အသတ်ရှိသဖြင့် စရံငွေကြိုတင်ပေးသွင်းသူများကို ဦးစားပေးစာရင်းသွင်းပေးပါမည်။"
+)
 
 
 def db():
@@ -301,7 +323,7 @@ def handle_text(chat_id, text):
     if q.startswith(("/start", "/help")) or "main menu" in q:
         send(
             chat_id,
-            "မင်္ဂလာပါ 👋\nMEPT Student Support မှကြိုဆိုပါတယ်။\n\nတက်လိုသည့် Class Type ကိုရွေးပါ။",
+            "🚢 MEPT အောင်မြင်မှုအတွက် မိမိနှင့်အသင့်တော်ဆုံး Class ကို ရွေးချယ်လိုက်ပါ!",
             HOME_MENU,
         )
     elif "in-person standard" in q:
@@ -334,6 +356,20 @@ def handle_text(chat_id, text):
             ),
             ONLINE_MENU,
         )
+    elif "အပ်နှံရန်" in q:
+        with db() as connection:
+            selected = connection.execute(
+                "SELECT package FROM leads WHERE chat_id=?", (chat_id,)
+            ).fetchone()
+        if selected and selected["package"]:
+            send(chat_id, ENROLLMENT_CAPTION)
+            payment_instructions(chat_id)
+        else:
+            send(
+                chat_id,
+                ENROLLMENT_CAPTION + "\n\nအပ်နှံလိုသော Class/Package ကို Main Menu မှ အရင်ရွေးပါ။",
+                HOME_MENU,
+            )
     elif "payment" in q or "ငွေ" in q or "kpay" in q:
         payment_instructions(chat_id)
     elif "အတန်းချိန်" in q or "schedule" in q or "အချိန်" in q:
@@ -346,15 +382,8 @@ def handle_text(chat_id, text):
             ),
             FAQ_MENU,
         )
-    elif "exam" in q or "စာမေးပွဲ" in q:
-        send(
-            chat_id,
-            (
-                "🎯 Standard နှင့် Premium နှစ်မျိုးလုံးမှာ Exam Form submission၊ "
-                "Exam Center support နှင့် Revision support ပါဝင်ပါတယ်။"
-            ),
-            FAQ_MENU,
-        )
+    elif "package support" in q or "exam" in q or "စာမေးပွဲ" in q:
+        send(chat_id, ALL_PACKAGE_SUPPORT, HOME_MENU)
     elif "faq" in q or "မေး" in q:
         send(chat_id, "သိလိုသည့်အကြောင်းအရာကို ရွေးပါ။", FAQ_MENU)
     elif "လိပ်စာ" in q or "ဆက်သွယ်" in q or "address" in q:
