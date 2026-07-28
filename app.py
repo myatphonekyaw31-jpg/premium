@@ -15,6 +15,8 @@ TOKEN = os.environ["TELEGRAM_BOT_TOKEN"]
 WEBHOOK_SECRET = os.environ["WEBHOOK_SECRET"]
 DASHBOARD_PASSWORD = os.environ.get("DASHBOARD_PASSWORD", "")
 DATABASE_PATH = os.environ.get("DATABASE_PATH", "/tmp/mept-leads.db")
+GOOGLE_SHEETS_WEBHOOK_URL = os.environ.get("GOOGLE_SHEETS_WEBHOOK_URL", "")
+GOOGLE_SHEETS_SYNC_SECRET = os.environ.get("GOOGLE_SHEETS_SYNC_SECRET", "")
 API = f"https://api.telegram.org/bot{TOKEN}/"
 K_PAY_NUMBER = "09886295282"
 K_PAY_NAME = "Myat Phone Kyaw"
@@ -206,6 +208,33 @@ def send(chat_id, text, keyboard=None):
     telegram("sendMessage", payload)
 
 
+def sync_lead_to_google_sheet(chat_id):
+    """Best-effort upsert so a temporary Sheet outage never breaks the bot."""
+    if not GOOGLE_SHEETS_WEBHOOK_URL or not GOOGLE_SHEETS_SYNC_SECRET:
+        return False
+    with db() as connection:
+        lead = connection.execute(
+            "SELECT * FROM leads WHERE chat_id=?", (chat_id,)
+        ).fetchone()
+    if not lead:
+        return False
+    payload = json.dumps(
+        {"secret": GOOGLE_SHEETS_SYNC_SECRET, "lead": dict(lead)}
+    ).encode()
+    request_data = urllib.request.Request(
+        GOOGLE_SHEETS_WEBHOOK_URL,
+        data=payload,
+        headers={"Content-Type": "application/json"},
+        method="POST",
+    )
+    try:
+        with urllib.request.urlopen(request_data, timeout=15) as response:
+            result = json.load(response)
+        return bool(result.get("ok"))
+    except Exception:
+        return False
+
+
 def upsert_identity(message):
     chat = message.get("chat", {})
     sender = message.get("from", {})
@@ -229,6 +258,7 @@ def upsert_identity(message):
             """,
             (chat_id, sender.get("username"), full_name, stamp, stamp),
         )
+    sync_lead_to_google_sheet(chat_id)
     return chat_id
 
 
@@ -237,12 +267,16 @@ def select_package(chat_id, key):
     with db() as connection:
         connection.execute(
             """
-            UPDATE leads SET class_type=?, package=?, fee=?, status='Interested',
-                payment_file_id=NULL, payment_submitted_at=NULL, updated_at=?
+            UPDATE leads SET class_type=?, package=?, fee=?,
+                status=CASE WHEN status='Paid' THEN 'Paid' ELSE 'Interested' END,
+                payment_file_id=CASE WHEN status='Paid' THEN payment_file_id ELSE NULL END,
+                payment_submitted_at=CASE WHEN status='Paid' THEN payment_submitted_at ELSE NULL END,
+                updated_at=?
             WHERE chat_id=?
             """,
             (item["class_type"], item["package"], item["fee"], now(), chat_id),
         )
+    sync_lead_to_google_sheet(chat_id)
     send(
         chat_id,
         item["details"]
@@ -266,9 +300,14 @@ def payment_instructions(chat_id):
             send(chat_id, "Payment မလုပ်ခင် Class နှင့် Package ကိုအရင်ရွေးပါ။", HOME_MENU)
             return
         connection.execute(
-            "UPDATE leads SET status='Payment Started', updated_at=? WHERE chat_id=?",
+            """
+            UPDATE leads SET
+                status=CASE WHEN status='Paid' THEN 'Paid' ELSE 'Payment Started' END,
+                updated_at=? WHERE chat_id=?
+            """,
             (now(), chat_id),
         )
+    sync_lead_to_google_sheet(chat_id)
     send(
         chat_id,
         (
@@ -308,6 +347,7 @@ def send_payment_confirmation(chat_id, lead):
                 """,
                 (str(exc)[:300], now(), chat_id),
             )
+        sync_lead_to_google_sheet(chat_id)
         return False
     with db() as connection:
         connection.execute(
@@ -317,6 +357,7 @@ def send_payment_confirmation(chat_id, lead):
             """,
             (now(), now(), chat_id),
         )
+    sync_lead_to_google_sheet(chat_id)
     return True
 
 
@@ -329,6 +370,7 @@ def handle_contact(chat_id, contact):
             "UPDATE leads SET phone=?, updated_at=? WHERE chat_id=?",
             (phone, now(), chat_id),
         )
+    sync_lead_to_google_sheet(chat_id)
     send(
         chat_id,
         "ဖုန်းနံပါတ် လက်ခံရရှိပါတယ် ✅\nအခု KPay Payment Screenshot ကို Photo အဖြစ်တင်ပေးပါ။",
@@ -353,10 +395,12 @@ def handle_photo(chat_id, photos):
         connection.execute(
             """
             UPDATE leads SET payment_file_id=?, payment_submitted_at=?,
-                status='Payment Review', updated_at=? WHERE chat_id=?
+                status=CASE WHEN status='Paid' THEN 'Paid' ELSE 'Payment Review' END,
+                updated_at=? WHERE chat_id=?
             """,
             (file_id, stamp, stamp, chat_id),
         )
+    sync_lead_to_google_sheet(chat_id)
     send(
         chat_id,
         (
@@ -620,6 +664,8 @@ def update_lead(chat_id):
         )
     if status == "Paid" and lead["status"] != "Paid":
         send_payment_confirmation(chat_id, lead)
+    else:
+        sync_lead_to_google_sheet(chat_id)
     return redirect(url_for("dashboard"))
 
 
@@ -657,6 +703,7 @@ def send_custom_message(chat_id):
                 "UPDATE leads SET confirmation_error=?, updated_at=? WHERE chat_id=?",
                 (f"Message failed: {str(exc)[:250]}", now(), chat_id),
             )
+        sync_lead_to_google_sheet(chat_id)
     return redirect(url_for("dashboard"))
 
 
