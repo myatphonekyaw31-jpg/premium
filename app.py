@@ -512,9 +512,29 @@ def update_lead(chat_id):
     if status not in allowed:
         abort(400)
     with db() as connection:
+        lead = connection.execute(
+            "SELECT status, full_name, class_type, package FROM leads WHERE chat_id=?",
+            (chat_id,),
+        ).fetchone()
+        if not lead:
+            abort(404)
         connection.execute(
             "UPDATE leads SET status=?, updated_at=? WHERE chat_id=?",
             (status, now(), chat_id),
+        )
+    if status == "Paid" and lead["status"] != "Paid":
+        student_name = lead["full_name"] or "Student"
+        send(
+            chat_id,
+            (
+                f"Payment Confirmed ✅\n\n"
+                f"{student_name} ရဲ့ ငွေပေးချေမှုကို MEPT team မှ အတည်ပြုပြီးပါပြီ။\n\n"
+                f"Class — {lead['class_type'] or 'MEPT Class'}\n"
+                f"Package — {lead['package'] or 'Selected Package'}\n\n"
+                "MEPT staff က အတန်းတက်ရမည့်ရက်၊ အချိန်နဲ့ Batch information ကို "
+                "ဆက်လက်အကြောင်းကြားပေးပါမယ်။ ကျေးဇူးတင်ပါတယ်။"
+            ),
+            HOME_MENU,
         )
     return redirect(url_for("dashboard"))
 
