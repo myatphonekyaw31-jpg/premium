@@ -235,6 +235,85 @@ def sync_lead_to_google_sheet(chat_id):
         return False
 
 
+def restore_leads_from_google_sheet():
+    """Rebuild the temporary local cache from the permanent Google Sheet."""
+    if not GOOGLE_SHEETS_WEBHOOK_URL or not GOOGLE_SHEETS_SYNC_SECRET:
+        return 0
+    payload = json.dumps(
+        {"secret": GOOGLE_SHEETS_SYNC_SECRET, "action": "list"}
+    ).encode()
+    request_data = urllib.request.Request(
+        GOOGLE_SHEETS_WEBHOOK_URL,
+        data=payload,
+        headers={"Content-Type": "application/json"},
+        method="POST",
+    )
+    try:
+        with urllib.request.urlopen(request_data, timeout=20) as response:
+            result = json.load(response)
+        leads = result.get("leads", []) if result.get("ok") else []
+    except Exception:
+        return 0
+
+    restored = 0
+    allowed_statuses = {
+        "New", "Interested", "Payment Started", "Payment Review", "Paid", "Lost"
+    }
+    with db() as connection:
+        for lead in leads:
+            try:
+                chat_id = int(lead.get("chat_id"))
+            except (TypeError, ValueError):
+                continue
+            status = lead.get("status")
+            if status not in allowed_statuses:
+                status = "New"
+            created_at = lead.get("created_at") or now()
+            updated_at = lead.get("updated_at") or created_at
+            connection.execute(
+                """
+                INSERT INTO leads (
+                    chat_id, telegram_username, full_name, phone, class_type,
+                    package, fee, status, payment_file_id,
+                    payment_submitted_at, confirmation_sent_at,
+                    confirmation_error, created_at, updated_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT(chat_id) DO UPDATE SET
+                    telegram_username=excluded.telegram_username,
+                    full_name=excluded.full_name,
+                    phone=excluded.phone,
+                    class_type=excluded.class_type,
+                    package=excluded.package,
+                    fee=excluded.fee,
+                    status=excluded.status,
+                    payment_file_id=excluded.payment_file_id,
+                    payment_submitted_at=excluded.payment_submitted_at,
+                    confirmation_sent_at=excluded.confirmation_sent_at,
+                    confirmation_error=excluded.confirmation_error,
+                    created_at=excluded.created_at,
+                    updated_at=excluded.updated_at
+                """,
+                (
+                    chat_id,
+                    lead.get("telegram_username"),
+                    lead.get("full_name"),
+                    lead.get("phone"),
+                    lead.get("class_type"),
+                    lead.get("package"),
+                    int(lead.get("fee") or 0),
+                    status,
+                    lead.get("payment_file_id"),
+                    lead.get("payment_submitted_at"),
+                    lead.get("confirmation_sent_at"),
+                    lead.get("confirmation_error"),
+                    created_at,
+                    updated_at,
+                ),
+            )
+            restored += 1
+    return restored
+
+
 def upsert_identity(message):
     chat = message.get("chat", {})
     sender = message.get("from", {})
@@ -622,6 +701,10 @@ def webhook(secret):
 @require_dashboard_auth
 def dashboard():
     with db() as connection:
+        local_count = connection.execute("SELECT COUNT(*) FROM leads").fetchone()[0]
+    if local_count == 0:
+        restore_leads_from_google_sheet()
+    with db() as connection:
         leads = connection.execute(
             "SELECT * FROM leads ORDER BY updated_at DESC"
         ).fetchall()
@@ -729,3 +812,4 @@ def payment_image(chat_id):
 
 
 init_db()
+restore_leads_from_google_sheet()
