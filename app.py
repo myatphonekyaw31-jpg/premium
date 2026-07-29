@@ -260,6 +260,8 @@ def restore_leads_from_google_sheet():
         "New", "Interested", "Payment Started", "Payment Review", "Paid", "Lost"
     }
     with db() as connection:
+        # The Sheet is authoritative. Remove stale cache rows that no longer exist there.
+        connection.execute("DELETE FROM leads")
         for lead in leads:
             try:
                 chat_id = int(lead.get("chat_id"))
